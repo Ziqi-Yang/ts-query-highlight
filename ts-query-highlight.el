@@ -45,7 +45,7 @@
   '((((class color) (background dark))
      :background "#dc8a78")
     (((class color) (background light))
-     :background "#dc8a78"))
+     :background "#f2d5cf"))
   "Background highlight face for first caught query."
   :group 'ts-query-highlight)
 
@@ -53,7 +53,7 @@
   '((((class color) (background dark))
      :background "#ea76cb")
     (((class color) (background light))
-     :background "#ea76cb"))
+     :background "#f4b8e4"))
   "Background highlight face for first caught query."
   :group 'ts-query-highlight)
 
@@ -61,7 +61,7 @@
   '((((class color) (background dark))
      :background "#8839ef")
     (((class color) (background light))
-     :background "#8839ef"))
+     :background "#ca9ee6"))
   "Background highlight face for first caught query."
   :group 'ts-query-highlight)
 
@@ -69,7 +69,7 @@
   '((((class color) (background dark))
      :background "#d20f39")
     (((class color) (background light))
-     :background "#8839ef"))
+     :background "#e78284"))
   "Background highlight face for first caught query."
   :group 'ts-query-highlight)
 
@@ -77,7 +77,7 @@
   '((((class color) (background dark))
      :background "#df8e1d")
     (((class color) (background light))
-     :background "#8839ef"))
+     :background "#ef9f76"))
   "Background highlight face for first caught query."
   :group 'ts-query-highlight)
 
@@ -86,7 +86,7 @@
   '((((class color) (background dark))
      :background "#40a02b")
     (((class color) (background light))
-     :background "#8839ef"))
+     :background "#e5c890"))
   "Background highlight face for first caught query."
   :group 'ts-query-highlight)
 
@@ -94,7 +94,7 @@
   '((((class color) (background dark))
      :background "#04a5e5")
     (((class color) (background light))
-     :background "#8839ef"))
+     :background "#a6d189"))
   "Background highlight face for first caught query."
   :group 'ts-query-highlight)
 
@@ -102,7 +102,7 @@
   '((((class color) (background dark))
      :background "#209fb5")
     (((class color) (background light))
-     :background "#8839ef"))
+     :background "#81c8be"))
   "Background highlight face for first caught query."
   :group 'ts-query-highlight)
 
@@ -110,7 +110,7 @@
   '((((class color) (background dark))
      :background "#1e66f5")
     (((class color) (background light))
-     :background "#8839ef"))
+     :background "#8caaee"))
   "Background highlight face for first caught query."
   :group 'ts-query-highlight)
 
@@ -146,7 +146,7 @@ Highlighting order:
   ;; keys: symbol name after '@' (string)
   (let ((res '())
         (face-num (if face-num face-num 0))
-        (lists '()) ;; lists in current layer for recursive call
+        (lists '())  ;; lists in current layer for recursive call
         return-list) ;; list returned by recursive call
     ;; don't use `(flatten-list query)', so user can get predictable highlighting
     (dolist (sym query)
@@ -172,6 +172,7 @@ Highlighting order:
   (let ((result (treesit-query-capture (treesit-buffer-root-node) query))
         (highlight-alist (ts-query-highlight--create-highlight-alist query))
         key node face ol)
+    (ts-query-highlight-clean (point-min) (point-max))
     (dolist (entry result)
       (setq key (car entry)
             node (cdr entry))

@@ -13,10 +13,10 @@ This package is highly inspired by `combobulate-query-build` command in [combobu
 ## Demo
 
 Query result highlight
-[./images/demo1.webp]
+![./images/demo1.webp]
 
 Symbol Completion Support
-[./images/demo2.webp]
+![./images/demo2.webp]
 
 ## Install && Customization
 

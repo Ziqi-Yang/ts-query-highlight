@@ -274,18 +274,13 @@ When in interactive use, then the region is the whole buffer."
          alist ol key face)
     (with-current-buffer ts-query-highlight-target-buffer-name
       (ts-query-highlight-execute query)
-      (setq alist ts-query-highlight-alist)
-      ;; (setq display-str
-      ;;       (let (res)
-      ;;         (dolist (entry ts-query-highlight-alist res)
-      ;;           (setq res (concat res " " (propertize (car entry) 'face (cdr entry)))))
-      ;;         (substring res 1)))
-      )
+      (setq alist ts-query-highlight-alist))
     (remove-overlays)
-    ;; (setq ol (make-overlay (point-max) (point-max)))
-    ;; (overlay-put ol 'face 'highlight)
-    ;; (overlay-put ol 'after-string (concat " => " display-str))
     (save-excursion
+      ;; TODO change the search method: regexp search then match
+      ;; (rx "@" (1+ (or word "/" "-" "_")))
+      ;; (while (search-forward-regexp "@\\(?:[[:word:]]\\|/\\|-\\|_\\)+" nil t)
+      ;;   )
       (dolist (entry alist)
         (goto-char (point-min))
         (setq key (concat "@" (car entry))

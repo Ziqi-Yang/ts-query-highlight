@@ -179,7 +179,7 @@ Highlighting order:
           (setq res (append
                      res (list
                           (cons (substring (symbol-name sym) 1)
-                                (nth face-num ts-query-highlight-faces)))))
+                                (nth (% face-num (length ts-query-highlight-faces)) ts-query-highlight-faces)))))
           (setq face-num (1+ face-num)))
         (dolist (l (reverse lists))
           (setq return-list (ts-query-highlight--create-highlight-alist l face-num))

@@ -58,7 +58,10 @@ Keymap for overlays on source code:
  - `m` or `RET`: mark the corresponding region.  
  
 Keymap for overlays inside panel:
- - `RET`: only highlight capture at point on source code.
+ - `RET`: only highlight capture at point on source code.  
+ 
+Completion Support:
+Use either `completion-at-point` or `ts-query-highlight--dabbrev-expand` command.
 
 ## Note
 

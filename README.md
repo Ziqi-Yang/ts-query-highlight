@@ -30,13 +30,35 @@ Symbol Completion Support
   (setq ts-query-highlight-dabbrev-expand-function 'cape-dabbrev))
 ```
 
-If you are not satisfied with the window layout, take a look at `ts-query-highlight-panel-display-buffer-parameters`.
+If you are not satisfied with the window layout, you nay want to customize `ts-query-highlight-panel-display-buffer-parameters` for the panel window, and 
+customize `display-buffer-alist` for `treesit-explore-mode` like
+
+``` emacs-lisp
+;; tree sitter
+(add-to-list 'display-buffer-alist
+  '("^\\*tree-sitter explorer for [^z-a]+\\*"
+     display-buffer-in-side-window
+     (side . right)
+     (window-width . 70)))
+```
 
 ## Usage
 
-`ts-query-highlight-panel`: open a panel for executing query. In the panel, you can use `C-c C-c` to execute, use `C-c C-k` to remove the highlight.  
+`ts-query-highlight-panel`: open a panel for executing query.  
+In panel:
+ - `C-c C-c` to execute. `ts-query-highlight-panel-mode-send-query`
+ - `C-c C-k` to remove the highlight. `ts-query-highlight-panel-mode-clean-query-res`
+ - `C-c C-e` to toggle display of the `treesit-explore-mode`. `ts-query-highlight-panel-mode-toggle-ts-explore`
+ 
 `ts-query-highlight-execute`: read query from minibuffer and execute it.   
-`ts-query-highlight-clean`: remove the highlight.  
+`ts-query-highlight-clean`: remove the query highlight in the current buffer.  
+
+Mouse hover on the overlays on source code: display capture name.  
+Keymap for overlays on source code:
+ - `m` or `RET`: mark the corresponding region.  
+ 
+Keymap for overlays inside panel:
+ - `RET`: only highlight capture at point on source code.
 
 ## Note
 

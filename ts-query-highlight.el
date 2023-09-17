@@ -32,6 +32,14 @@
 ;;  dark: Latte
 ;;  light: Frappé
 
+;; If you want to set layout, custom `ts-query-highlight-panel-display-buffer-parameters'
+;; and set display-buffer-alist for `treesit-explore-mode' like
+;; (add-to-list 'display-buffer-alist
+;;              '("^\\*tree-sitter explorer for [^z-a]+\\*"
+;;                display-buffer-in-side-window
+;;                (side . right)
+;;                (window-width . 70)))
+
 ;;; Code:
 
 (require 'treesit)
@@ -206,9 +214,25 @@ PROMPT."
                           ts-query-highlight--read-experssion-map t
                           'read-expression-history)))
 
+(defun ts-query-highlight-mark-highlight ()
+  "Mark current highlight region at point."
+  (interactive)
+  (let* ((ol (car (overlays-at (point) t)))
+         (capture (overlay-get ol 'help-echo)))
+    (push-mark (overlay-start ol))
+    (goto-char (overlay-end ol))
+    (activate-mark)
+    (message "Current capture is: %s" capture)))
+
+(defvar-keymap ts-query-highlight-overlay-map
+  :doc "Keymap used on ts-query-highlight overlays."
+  "m" #'ts-query-highlight-mark-highlight
+  "RET" #'ts-query-highlight-mark-highlight)
+
 ;;;###autoload
-(defun ts-query-highlight-execute (query)
-  "Execute and highlight the QUERY result."
+(defun ts-query-highlight-execute (query &optional keys)
+  "Execute and highlight the QUERY result.
+KEYS: A list of string.  if provided, then only highlight those KEYS(captures)."
   (interactive (list (when (ts-query-highlight--validate-buffer)
                        (ts-query-highlight--read-experssion (buffer-name (current-buffer)) "Query: "))))
   (let ((result (treesit-query-capture (treesit-buffer-root-node) query))
@@ -219,11 +243,14 @@ PROMPT."
     (dolist (entry result)
       (setq key (car entry)
             node (cdr entry))
-      (setq face (cdr (assoc-string key highlight-alist))
-            ol (make-overlay (treesit-node-start node) (treesit-node-end node)))
-      (overlay-put ol 'id 'ts-query-highlight) ;; custom property, for easier cleaning
-      (overlay-put ol 'face face)
-      (overlay-put ol 'help-echo (symbol-name key)))))
+      (when (or (not keys)
+                (member (symbol-name key) keys))
+        (setq face (cdr (assoc-string key highlight-alist))
+              ol (make-overlay (treesit-node-start node) (treesit-node-end node)))
+        (overlay-put ol 'id 'ts-query-highlight) ;; custom property, for easier cleaning
+        (overlay-put ol 'keymap ts-query-highlight-overlay-map)
+        (overlay-put ol 'face face)
+        (overlay-put ol 'help-echo (symbol-name key))))))
 
 ;;;###autoload
 (defun ts-query-highlight-clean (begin end)
@@ -231,6 +258,10 @@ PROMPT."
 When in interactive use, then the region is the whole buffer."
   (interactive (list (point-min) (point-max)))
   (remove-overlays begin end 'id 'ts-query-highlight))
+
+(defun ts-query-highlight-panel--get-ts-explore-buffer-name (target-buffer-name)
+  "Get `treesit-explore-mode' buffer name.  Based on TARGET-BUFFER-NAME."
+  (format "*tree-sitter explorer for %s*" target-buffer-name))
 
 ;;;###autoload
 (defun ts-query-highlight-panel ()
@@ -242,8 +273,8 @@ When in interactive use, then the region is the whole buffer."
       (user-error "This buffer cannot be use as target buffer"))
     (setq-local ts-query-highlight-target-buffer-name (buffer-name target-buffer))
     ;; enable treesit explore mode
-    (unless (get-buffer (format "*tree-sitter explorer for %s*"
-                                ts-query-highlight-target-buffer-name))
+    (unless (get-buffer (ts-query-highlight-panel--get-ts-explore-buffer-name
+                         ts-query-highlight-target-buffer-name))
       (treesit-explore-mode))
     (with-current-buffer panel-buffer
       (erase-buffer)
@@ -251,9 +282,8 @@ When in interactive use, then the region is the whole buffer."
       (backward-char 2)
       (ts-query-highlight-panel-mode)
       (setq-local ts-query-highlight-target-buffer-name (buffer-name target-buffer)))
-    (display-buffer panel-buffer
-                    ts-query-highlight-panel-display-buffer-parameters)
-    (select-window (get-buffer-window panel-buffer))))
+    (pop-to-buffer panel-buffer
+                   ts-query-highlight-panel-display-buffer-parameters)))
 
 (defun ts-query-highlight--dabbrev-expand  ()
   (interactive)
@@ -266,14 +296,26 @@ When in interactive use, then the region is the whole buffer."
       (user-error "Please enable `treesit-explore-mode' in original buffer first!"))
     (call-interactively ts-query-highlight-dabbrev-expand-function)))
 
-(defun ts-query-highlight-panel-mode-send-query ()
-  "Send text inside query panel as query and highlight the result."
+(defun ts-query-highlight-panel-overlay-send-query ()
+  "Only highlight current capture (capture at point)."
+  (interactive)
+  (let* ((ol (car (overlays-at (point) t)))
+         (cur-capture (buffer-substring (overlay-start ol) (overlay-end ol))))
+    (ts-query-highlight-panel-mode-send-query (list cur-capture))))
+
+(defvar-keymap ts-query-highlight-panel-overlay-map
+  :doc "Keymap used on ts-query-highlight overlays."
+  "RET" #'ts-query-highlight-panel-overlay-send-query)
+
+(defun ts-query-highlight-panel-mode-send-query (&optional keys)
+  "Send text inside query panel as query and highlight the result.
+KEYS: keys for `ts-query-highlight-execute'."
   (interactive)
   (let* ((text (buffer-string))
          (query (read text))
-         alist ol key face)
+         alist)
     (with-current-buffer ts-query-highlight-target-buffer-name
-      (ts-query-highlight-execute query)
+      (ts-query-highlight-execute query keys)
       (setq alist ts-query-highlight-alist))
     (remove-overlays)
     (save-excursion
@@ -287,6 +329,8 @@ When in interactive use, then the region is the whole buffer."
                (ol (make-overlay start end))
                (key (buffer-substring start end))
                (face (assoc-string key alist)))
+          (overlay-put ol 'id 'ts-query-highlight) ;; custom property, for easier cleaning
+          (overlay-put ol 'keymap ts-query-highlight-panel-overlay-map)
           (overlay-put ol 'face face))))))
 
 (defun ts-query-highlight-panel-mode-clean-query-res ()
@@ -294,12 +338,27 @@ When in interactive use, then the region is the whole buffer."
   (interactive)
   (with-current-buffer ts-query-highlight-target-buffer-name
     (ts-query-highlight-clean (point-min) (point-max)))
-  (remove-overlays))
+  (remove-overlays (point-min) (point-max) 'id 'ts-query-highlight))
+
+(defun ts-query-highlight-panel-mode-toggle-ts-explore ()
+  "Toggle the ts-explore window."
+  (interactive)
+  (let* ((ts-explore-buffer-name (ts-query-highlight-panel--get-ts-explore-buffer-name
+                                  ts-query-highlight-target-buffer-name))
+         (ts-explore-buffer (get-buffer ts-explore-buffer-name))
+         (ts-explore-window (get-buffer-window ts-explore-buffer)))
+    (if ts-explore-window
+        (delete-window ts-explore-window)
+      (if ts-explore-buffer
+          (display-buffer ts-explore-buffer)
+        (with-current-buffer ts-query-highlight-target-buffer-name
+          (treesit-explore-mode))))))
 
 (defvar ts-query-highlight-panel-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-c") #'ts-query-highlight-panel-mode-send-query)
     (define-key map (kbd "C-c C-k") #'ts-query-highlight-panel-mode-clean-query-res)
+    (define-key map (kbd "C-c C-e") #'ts-query-highlight-panel-mode-toggle-ts-explore)
     map))
 
 (define-derived-mode ts-query-highlight-panel-mode prog-mode "TS-PANEL"

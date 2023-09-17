@@ -277,17 +277,17 @@ When in interactive use, then the region is the whole buffer."
       (setq alist ts-query-highlight-alist))
     (remove-overlays)
     (save-excursion
-      ;; TODO change the search method: regexp search then match
-      ;; (rx "@" (1+ (or word "/" "-" "_")))
-      ;; (while (search-forward-regexp "@\\(?:[[:word:]]\\|/\\|-\\|_\\)+" nil t)
-      ;;   )
-      (dolist (entry alist)
-        (goto-char (point-min))
-        (setq key (concat "@" (car entry))
-              face (cdr entry))
-        (search-forward key)
-        (setq ol (make-overlay (- (point) (length key)) (point)))
-        (overlay-put ol 'face face)))))
+      ;; (rx "@" (1+ (or (syntax word) (syntax symbol))))
+      ;; "@\\(?:\\sw\\|\\s_\\)+"
+      ;; make sure we use Emacs lisp mode syntax table
+      (goto-char (point-min))
+      (while (search-forward-regexp "@\\(?:\\sw\\|\\s_\\)+" nil t)
+        (let* ((start (save-excursion (1+ (search-backward "@"))))
+               (end (point))
+               (ol (make-overlay start end))
+               (key (buffer-substring start end))
+               (face (assoc-string key alist)))
+          (overlay-put ol 'face face))))))
 
 (defun ts-query-highlight-panel-mode-clean-query-res ()
   "Clean the query result using `ts-query-highlight-clean'."

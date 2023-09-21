@@ -334,7 +334,7 @@ KEYS: keys for `ts-query-highlight-execute'."
                (end (point))
                (ol (make-overlay start end))
                (key (buffer-substring start end))
-               (face (assoc-string key alist)))
+               (face (cdr (assoc-string key alist))))
           (overlay-put ol 'id 'ts-query-highlight) ;; custom property, for easier cleaning
           (overlay-put ol 'keymap ts-query-highlight-panel-overlay-map)
           (overlay-put ol 'face face))))))

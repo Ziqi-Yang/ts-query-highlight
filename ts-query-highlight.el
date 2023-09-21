@@ -177,17 +177,23 @@ Highlighting order:
   ;; keys: symbol name after '@' (string)
   (let ((res '())
         (face-num (if face-num face-num 0))
-        (lists '())  ;; lists in current layer for recursive call
+        (lists '()) ;; lists in current layer for recursive call
+        key         ;; key of the returned alist in one recursive call
         return-list) ;; list returned by recursive call
     ;; don't use `(flatten-list query)', so user can get predictable highlighting
     (dolist (sym query)
       (if (listp sym)
           (setq lists (append lists (list sym)))
-        (when (string-match "@[^z-a]+" (symbol-name sym))
-          (setq res (append
-                     res (list
-                          (cons (substring (symbol-name sym) 1)
-                                (nth (% face-num (length ts-query-highlight-faces)) ts-query-highlight-faces)))))
+        (when (or (and (symbolp sym) (string-match "@[^z-a]+" (symbol-name sym)))
+                  (stringp sym))
+          (cond
+           ((and (symbolp sym) (string-match "@[^z-a]+" (symbol-name sym)))
+            (setq key (substring (symbol-name sym) 1)))
+           ((stringp sym) ;; like "+"
+            (setq key sym)))
+          (setq res
+                (append
+                 res (list (cons key (nth (% face-num (length ts-query-highlight-faces)) ts-query-highlight-faces)))))
           (setq face-num (1+ face-num)))
         (dolist (l (reverse lists))
           (setq return-list (ts-query-highlight--create-highlight-alist l face-num))

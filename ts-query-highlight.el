@@ -58,6 +58,11 @@
   :type 'symbol
   :group 'ts-query-highlight)
 
+(defcustom ts-query-highlight-panel-auto-verify-query-when-error t
+  "Auto use `treesit-query-verify' when executing query resulting in error."
+  :type 'boolean
+  :group 'ts-query-highlight)
+
 (defcustom ts-query-highlight-panel-display-buffer-parameters
   `(display-buffer-below-selected
     (window-height . fit-window-to-buffer)
@@ -293,30 +298,32 @@ When in interactive use, then the region is the whole buffer."
   "Send text inside query panel as query and highlight the result.
 KEYS: keys for `ts-query-highlight-execute'."
   (interactive)
-  (let* ((text (buffer-string))
-         (query (read text))
-         alist)
-    (with-current-buffer ts-query-highlight-target-buffer-name
-      (ts-query-highlight-execute query keys)
-      (setq alist ts-query-highlight-alist))
-    (remove-overlays)
-    (save-excursion
-      ;; (rx "@" (1+ (or (syntax word) (syntax symbol))))
-      ;; "@\\(?:\\sw\\|\\s_\\)+"
-      ;; make sure we use Emacs lisp mode syntax table
-      (goto-char (point-min))
-      (while (search-forward-regexp "@\\(?:\\sw\\|\\s_\\)+" nil t)
-        (let* ((start (save-excursion (1+ (search-backward "@"))))
-               (end (point))
-               (ol (make-overlay start end))
-               (key (buffer-substring start end))
-               (face (cdr (assoc-string key alist)))
-               (face (if face ;; never meet this condition?
-                         face
-                       'ts-query-highlight-mismatch-capture-face)))
-          (overlay-put ol 'id 'ts-query-highlight) ;; custom property, for easier cleaning
-          (overlay-put ol 'keymap ts-query-highlight-panel-overlay-map)
-          (overlay-put ol 'face face))))))
+  (condition-case nil
+      (let* ((text (buffer-string))
+             (query (read text))
+             alist)
+        (with-current-buffer ts-query-highlight-target-buffer-name
+          (ts-query-highlight-execute query keys)
+          (setq alist ts-query-highlight-alist))
+        (remove-overlays)
+        (save-excursion
+          ;; (rx "@" (1+ (or (syntax word) (syntax symbol))))
+          ;; "@\\(?:\\sw\\|\\s_\\)+"
+          ;; make sure we use Emacs lisp mode syntax table
+          (goto-char (point-min))
+          (while (search-forward-regexp "@\\(?:\\sw\\|\\s_\\)+" nil t)
+            (let* ((start (save-excursion (1+ (search-backward "@"))))
+                   (end (point))
+                   (ol (make-overlay start end))
+                   (key (buffer-substring start end))
+                   (face (cdr (assoc-string key alist)))
+                   (face (if face ;; never meet this condition?
+                             face
+                           'ts-query-highlight-mismatch-capture-face)))
+              (overlay-put ol 'id 'ts-query-highlight) ;; custom property, for easier cleaning
+              (overlay-put ol 'keymap ts-query-highlight-panel-overlay-map)
+              (overlay-put ol 'face face)))))
+    (error (ts-query-highlight-panel-valide-query))))
 
 (defun ts-query-highlight-panel-mode-clean-query-res ()
   "Clean the query result using `ts-query-highlight-clean'."
@@ -340,11 +347,11 @@ KEYS: keys for `ts-query-highlight-execute'."
           (treesit-explore-mode))))))
 
 (defun ts-query-highlight-panel-valide-query ()
-  "Use `ts-query-validate' to validate the query."
+  "Use `ts-query-validate' to validate the query.
+QUERY: query."
   (interactive)
-  (let* ((text (buffer-string))
-         (query (read text))
-         language)
+  (let ((query (read (buffer-string)))
+        language)
     (with-current-buffer ts-query-highlight-target-buffer-name
       (setq language (treesit-node-language (treesit-buffer-root-node))))
     (treesit-query-validate language query)))

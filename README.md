@@ -42,6 +42,9 @@ customize `display-buffer-alist` for `treesit-explore-mode` like
      (window-width . 70)))
 ```
 
+To disable auto invoke `treesit-query-verify` on executing a query containing error, 
+set `ts-query-highlight-panel-auto-verify-query-when-error` to `nil`.
+
 ## Usage
 
 `ts-query-highlight-panel`: open a panel for executing query.  

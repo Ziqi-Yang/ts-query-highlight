@@ -48,7 +48,9 @@ customize `display-buffer-alist` for `treesit-explore-mode` like
 In panel:
  - `C-c C-c` to execute. `ts-query-highlight-panel-mode-send-query`
  - `C-c C-k` to remove the highlight. `ts-query-highlight-panel-mode-clean-query-res`
+ - `C-c C-v` validate the query using `ts-query-validate`. `ts-query-highlight-panel-mode-clean-query-res`
  - `C-c C-e` to toggle display of the `treesit-explore-mode`. `ts-query-highlight-panel-mode-toggle-ts-explore`
+ - `C-c C-q` quit. `ts-query-highlight-quit`
  
 `ts-query-highlight-execute`: read query from minibuffer and execute it.   
 `ts-query-highlight-clean`: remove the query highlight in the current buffer.  

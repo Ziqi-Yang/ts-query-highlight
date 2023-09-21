@@ -140,6 +140,11 @@
   "Background highlight face for first caught query."
   :group 'ts-query-highlight)
 
+(defface ts-query-highlight-mismatch-capture-face
+  '((t (:underline (:style wave :color "#d20f39"))))
+  "Face for mismatch capture face."
+  :group 'ts-query-highlight)
+
 (defvar ts-query-highlight-faces
   '(ts-query-highlight-face-1
     ts-query-highlight-face-2
@@ -167,40 +172,6 @@ Return t."
   (unless (treesit-parser-list)
     (error "There is no parser in the current buffer!"))
   t)
-
-(defun ts-query-highlight--create-highlight-alist (query &optional face-num)
-  "Create capture name -> highlight face alist.
-Capture names are typically the symbol after `@' in QUERY.
-FACE-NUM: the nth face in the `ts-query-highlight-faces'.
-Highlighting order:
- ((((_) @c) @b (_) @d) @a ((_) @h) (((_) @g) @f) @e)"
-  ;; keys: symbol name after '@' (string)
-  (let ((res '())
-        (face-num (if face-num face-num 0))
-        (lists '()) ;; lists in current layer for recursive call
-        key         ;; key of the returned alist in one recursive call
-        return-list) ;; list returned by recursive call
-    ;; don't use `(flatten-list query)', so user can get predictable highlighting
-    (dolist (sym query)
-      (if (listp sym)
-          (setq lists (append lists (list sym)))
-        (when (or (and (symbolp sym) (string-match "@[^z-a]+" (symbol-name sym)))
-                  (stringp sym))
-          (cond
-           ((and (symbolp sym) (string-match "@[^z-a]+" (symbol-name sym)))
-            (setq key (substring (symbol-name sym) 1)))
-           ((stringp sym) ;; like "+"
-            (setq key sym)))
-          (setq res
-                (append
-                 res (list (cons key (nth (% face-num (length ts-query-highlight-faces)) ts-query-highlight-faces)))))
-          (setq face-num (1+ face-num)))
-        (dolist (l (reverse lists))
-          (setq return-list (ts-query-highlight--create-highlight-alist l face-num))
-          (setq face-num (+ (length return-list) face-num))
-          (setq res (append res return-list)))
-        (setq lists nil)))
-    res))
 
 (defvar-keymap ts-query-highlight--read-experssion-map
   :doc "Keymap used by `ts-query-highlight--read-experssion'."
@@ -242,21 +213,26 @@ KEYS: A list of string.  if provided, then only highlight those KEYS(captures)."
   (interactive (list (when (ts-query-highlight--validate-buffer)
                        (ts-query-highlight--read-experssion (buffer-name (current-buffer)) "Query: "))))
   (let ((result (treesit-query-capture (treesit-buffer-root-node) query))
-        (highlight-alist (ts-query-highlight--create-highlight-alist query))
-        key node face ol)
+        (face-num 0)
+        highlight-alist key node face ol)
     (ts-query-highlight-clean (point-min) (point-max))
-    (setq ts-query-highlight-alist highlight-alist)
     (dolist (entry result)
-      (setq key (car entry)
+      (setq key (symbol-name (car entry)) ;; string version of capture
             node (cdr entry))
+      (setq face (cdr (assoc-string key highlight-alist)))
+      (unless face
+        (setq highlight-alist (append highlight-alist
+                                      (list (cons key (nth (% face-num (length ts-query-highlight-faces)) ts-query-highlight-faces)))))
+        (setq face-num (1+ face-num)))
       (when (or (not keys)
-                (member (symbol-name key) keys))
-        (setq face (cdr (assoc-string key highlight-alist))
-              ol (make-overlay (treesit-node-start node) (treesit-node-end node)))
+                (member key keys))
+        (setq face (cdr (assoc key highlight-alist)))
+        (setq ol (make-overlay (treesit-node-start node) (treesit-node-end node)))
         (overlay-put ol 'id 'ts-query-highlight) ;; custom property, for easier cleaning
         (overlay-put ol 'keymap ts-query-highlight-overlay-map)
         (overlay-put ol 'face face)
-        (overlay-put ol 'help-echo (symbol-name key))))))
+        (overlay-put ol 'help-echo key)))
+    (setq ts-query-highlight-alist highlight-alist)))
 
 ;;;###autoload
 (defun ts-query-highlight-clean (begin end)
@@ -334,7 +310,10 @@ KEYS: keys for `ts-query-highlight-execute'."
                (end (point))
                (ol (make-overlay start end))
                (key (buffer-substring start end))
-               (face (cdr (assoc-string key alist))))
+               (face (cdr (assoc-string key alist)))
+               (face (if face ;; never meet this condition?
+                         face
+                       'ts-query-highlight-mismatch-capture-face)))
           (overlay-put ol 'id 'ts-query-highlight) ;; custom property, for easier cleaning
           (overlay-put ol 'keymap ts-query-highlight-panel-overlay-map)
           (overlay-put ol 'face face))))))
@@ -360,11 +339,31 @@ KEYS: keys for `ts-query-highlight-execute'."
         (with-current-buffer ts-query-highlight-target-buffer-name
           (treesit-explore-mode))))))
 
+(defun ts-query-highlight-panel-valide-query ()
+  "Use `ts-query-validate' to validate the query."
+  (interactive)
+  (let* ((text (buffer-string))
+         (query (read text))
+         language)
+    (with-current-buffer ts-query-highlight-target-buffer-name
+      (setq language (treesit-node-language (treesit-buffer-root-node))))
+    (treesit-query-validate language query)))
+
+(defun ts-query-highlight-panel-quit ()
+  "Exit panel."
+  (interactive)
+  (with-current-buffer ts-query-highlight-target-buffer-name
+    (ts-query-highlight-clean (point-min) (point-max))
+    (treesit-explore-mode -1))
+  (kill-buffer-and-window))
+
 (defvar ts-query-highlight-panel-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-c") #'ts-query-highlight-panel-mode-send-query)
     (define-key map (kbd "C-c C-k") #'ts-query-highlight-panel-mode-clean-query-res)
+    (define-key map (kbd "C-c C-v") #'ts-query-highlight-panel-valide-query)
     (define-key map (kbd "C-c C-e") #'ts-query-highlight-panel-mode-toggle-ts-explore)
+    (define-key map (kbd "C-c C-q") #'ts-query-highlight-panel-quit)
     map))
 
 (define-derived-mode ts-query-highlight-panel-mode prog-mode "TS-PANEL"
